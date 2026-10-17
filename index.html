@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Sentinel</title>
+<style>
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 30px 16px; font-family: Arial, sans-serif;
+	background: #eef2ff; color: #172554;
+}
+.card {
+	max-width: 900px; margin: auto; padding: 28px;
+	background: white; border-radius: 14px;
+	box-shadow: 0 8px 28px #17255418;
+}
+h1 { margin-top: 0; }
+p { color: #64748b; }
+label { display: block; margin-top: 16px; font-weight: bold; }
+input, select, textarea, button {
+	width: 100%; padding: 12px; margin-top: 7px;
+	border: 1px solid #cbd5e1; border-radius: 7px; font: inherit;
+}
+textarea { resize: vertical; }
+button {
+	margin-top: 20px; background: #2563eb; color: white;
+	border: none; font-weight: bold; cursor: pointer;
+}
+button:disabled { opacity: .6; cursor: wait; }
+pre {
+	white-space: pre-wrap; overflow-wrap: anywhere;
+	padding: 18px; border-radius: 8px;
+	background: #0f172a; color: #e2e8f0; min-height: 80px;
+}
+.small { font-size: 13px; }
+</style>
+</head>
+<body>
+<main class="card">
+	<h1>🛡️ API Sentinel</h1>
+	<p>Send HTTP requests and inspect API responses.</p>
+
+	<form id="requestForm">
+		<label for="method">HTTP Method</label>
+		<select id="method">
+			<option>GET</option>
+			<option>POST</option>
+			<option>PUT</option>
+			<option>PATCH</option>
+			<option>DELETE</option>
+		</select>
+
+		<label for="url">API URL</label>
+		<input id="url" type="url"
+			placeholder="https://jsonplaceholder.typicode.com/users/1" required>
+
+		<label for="body">Request Body (JSON, for POST/PUT/PATCH)</label>
+		<textarea id="body" rows="5"
+			placeholder='{"title":"Test","body":"Hello","userId":1}'></textarea>
+
+		<button id="sendButton" type="submit">Send Request</button>
+	</form>
+
+	<h2>API Response</h2>
+	<p id="summary" class="small">No request sent yet.</p>
+	<pre id="result">Your response will appear here.</pre>
+</main>
+
+<script>
+const form = document.getElementById('requestForm');
+const result = document.getElementById('result');
+const summary = document.getElementById('summary');
+const button = document.getElementById('sendButton');
+
+form.addEventListener('submit', async (event) => {
+	event.preventDefault();
+
+	button.disabled = true;
+	button.textContent = 'Sending...';
+	summary.textContent = 'Waiting for API response...';
+	result.textContent = '';
+
+	try {
+		const response = await fetch('/api/send', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				url: document.getElementById('url').value.trim(),
+				method: document.getElementById('method').value,
+				body: document.getElementById('body').value.trim()
+			})
+		});
+
+		const data = await response.json();
+
+		if (data.error) {
+			summary.textContent = `Error — HTTP ${response.status}`;
+			result.textContent = data.error;
+			return;
+		}
+
+		summary.textContent =
+			`HTTP ${data.status} ${data.statusText} | ${data.timeMs} ms | ${data.sizeBytes} bytes`;
+
+		result.textContent = JSON.stringify(data, null, 2);
+	} catch (error) {
+		summary.textContent = 'Request failed';
+		result.textContent = error.message;
+	} finally {
+		button.disabled = false;
+		button.textContent = 'Send Request';
+	}
+});
+</script>
+</body>
+</html>
