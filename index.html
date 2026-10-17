@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,113 +6,161 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API Sentinel</title>
 <style>
-* { box-sizing: border-box; }
-body {
-	margin: 0; padding: 30px 16px; font-family: Arial, sans-serif;
-	background: #eef2ff; color: #172554;
-}
-.card {
-	max-width: 900px; margin: auto; padding: 28px;
-	background: white; border-radius: 14px;
-	box-shadow: 0 8px 28px #17255418;
-}
-h1 { margin-top: 0; }
-p { color: #64748b; }
-label { display: block; margin-top: 16px; font-weight: bold; }
-input, select, textarea, button {
-	width: 100%; padding: 12px; margin-top: 7px;
-	border: 1px solid #cbd5e1; border-radius: 7px; font: inherit;
-}
-textarea { resize: vertical; }
-button {
-	margin-top: 20px; background: #2563eb; color: white;
-	border: none; font-weight: bold; cursor: pointer;
-}
-button:disabled { opacity: .6; cursor: wait; }
-pre {
-	white-space: pre-wrap; overflow-wrap: anywhere;
-	padding: 18px; border-radius: 8px;
-	background: #0f172a; color: #e2e8f0; min-height: 80px;
-}
-.small { font-size: 13px; }
+*{box-sizing:border-box}
+body{margin:0;padding:30px 16px;font-family:Arial,sans-serif;background:#eef2ff;color:#172554}
+.card{max-width:950px;margin:auto;padding:28px;background:white;border-radius:14px;box-shadow:0 8px 28px #17255418}
+h1{margin-top:0}p{color:#64748b}
+label{display:block;margin-top:14px;font-weight:bold}
+input,select,textarea,button{width:100%;padding:12px;margin-top:7px;border:1px solid #cbd5e1;border-radius:7px;font:inherit}
+button{background:#2563eb;color:white;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.checks{display:flex;gap:20px;flex-wrap:wrap;margin-top:16px}
+.checks label{font-weight:normal;margin:0}
+.checks input{width:auto}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;border-radius:8px;background:#0f172a;color:#e2e8f0;min-height:80px}
+.pass{color:#15803d;font-weight:bold}.fail{color:#b91c1c;font-weight:bold}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main class="card">
-	<h1>🛡️ API Sentinel</h1>
-	<p>Send HTTP requests and inspect API responses.</p>
+<h1>🛡️ API Sentinel</h1>
+<p>Test APIs, inspect responses, and validate results.</p>
 
-	<form id="requestForm">
-		<label for="method">HTTP Method</label>
-		<select id="method">
-			<option>GET</option>
-			<option>POST</option>
-			<option>PUT</option>
-			<option>PATCH</option>
-			<option>DELETE</option>
-		</select>
+<form id="requestForm">
+<label for="method">HTTP Method</label>
+<select id="method">
+<option>GET</option><option>POST</option><option>PUT</option>
+<option>PATCH</option><option>DELETE</option>
+</select>
 
-		<label for="url">API URL</label>
-		<input id="url" type="url"
-			placeholder="https://jsonplaceholder.typicode.com/users/1" required>
+<label for="url">API URL</label>
+<input id="url" type="url" placeholder="https://jsonplaceholder.typicode.com/users/1" required>
 
-		<label for="body">Request Body (JSON, for POST/PUT/PATCH)</label>
-		<textarea id="body" rows="5"
-			placeholder='{"title":"Test","body":"Hello","userId":1}'></textarea>
+<label for="body">Request Body (JSON, for POST/PUT/PATCH)</label>
+<textarea id="body" rows="4" placeholder='{"title":"Test","body":"Hello","userId":1}'></textarea>
 
-		<button id="sendButton" type="submit">Send Request</button>
-	</form>
+<h2>Validation Rules</h2>
+<div class="grid">
+<div>
+<label for="expectedStatus">Expected HTTP Status</label>
+<input id="expectedStatus" type="number" value="200" min="100" max="599">
+</div>
+<div>
+<label for="maxTime">Maximum Response Time (ms)</label>
+<input id="maxTime" type="number" value="2000" min="1">
+</div>
+</div>
+<div class="checks">
+<label><input type="checkbox" id="checkStatus" checked> Check status code</label>
+<label><input type="checkbox" id="checkTime" checked> Check response time</label>
+<label><input type="checkbox" id="checkJson" checked> Require valid JSON</label>
+</div>
 
-	<h2>API Response</h2>
-	<p id="summary" class="small">No request sent yet.</p>
-	<pre id="result">Your response will appear here.</pre>
+<button id="sendButton" type="submit">Send Request & Validate</button>
+</form>
+
+<h2>Validation Results</h2>
+<div id="validation">No test run yet.</div>
+<h2>API Response</h2>
+<p id="summary">No request sent yet.</p>
+<pre id="result">Your response will appear here.</pre>
 </main>
 
 <script>
 const form = document.getElementById('requestForm');
 const result = document.getElementById('result');
 const summary = document.getElementById('summary');
+const validation = document.getElementById('validation');
 const button = document.getElementById('sendButton');
 
 form.addEventListener('submit', async (event) => {
-	event.preventDefault();
+  event.preventDefault();
+  button.disabled = true;
+  button.textContent = 'Testing...';
+  summary.textContent = 'Waiting for API response...';
+  validation.textContent = 'Running tests...';
+  result.textContent = '';
 
-	button.disabled = true;
-	button.textContent = 'Sending...';
-	summary.textContent = 'Waiting for API response...';
-	result.textContent = '';
+  try {
+    const response = await fetch('/api/send', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        url: document.getElementById('url').value.trim(),
+        method: document.getElementById('method').value,
+        body: document.getElementById('body').value.trim()
+      })
+    });
 
-	try {
-		const response = await fetch('/api/send', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				url: document.getElementById('url').value.trim(),
-				method: document.getElementById('method').value,
-				body: document.getElementById('body').value.trim()
-			})
-		});
+    const data = await response.json();
 
-		const data = await response.json();
+    if (data.error) {
+      summary.textContent = `Request error — HTTP ${response.status}`;
+      validation.innerHTML = '<p class="fail">✖ TEST FAILED: ' +
+        escapeHtml(data.error) + '</p>';
+      result.textContent = JSON.stringify(data, null, 2);
+      return;
+    }
 
-		if (data.error) {
-			summary.textContent = `Error — HTTP ${response.status}`;
-			result.textContent = data.error;
-			return;
-		}
+    summary.textContent =
+      `HTTP ${data.status} ${data.statusText} | ${data.timeMs} ms | ${data.sizeBytes} bytes`;
+    result.textContent = JSON.stringify(data, null, 2);
 
-		summary.textContent =
-			`HTTP ${data.status} ${data.statusText} | ${data.timeMs} ms | ${data.sizeBytes} bytes`;
+    const tests = [];
+    if (document.getElementById('checkStatus').checked) {
+      const expected = Number(document.getElementById('expectedStatus').value);
+      tests.push({
+        name: `Status code is ${expected}`,
+        pass: data.status === expected,
+        actual: `Received ${data.status}`
+      });
+    }
 
-		result.textContent = JSON.stringify(data, null, 2);
-	} catch (error) {
-		summary.textContent = 'Request failed';
-		result.textContent = error.message;
-	} finally {
-		button.disabled = false;
-		button.textContent = 'Send Request';
-	}
+    if (document.getElementById('checkTime').checked) {
+      const limit = Number(document.getElementById('maxTime').value);
+      tests.push({
+        name: `Response time ≤ ${limit} ms`,
+        pass: data.timeMs <= limit,
+        actual: `Took ${data.timeMs} ms`
+      });
+    }
+
+    if (document.getElementById('checkJson').checked) {
+      let validJson = false;
+      try { JSON.parse(data.body); validJson = true; } catch {}
+      tests.push({
+        name: 'Response body is valid JSON',
+        pass: validJson,
+        actual: validJson ? 'Valid JSON' : 'Not JSON'
+      });
+    }
+
+    const passed = tests.filter(t => t.pass).length;
+    const failed = tests.length - passed;
+
+    validation.innerHTML =
+      `<h3 class="${failed ? 'fail' : 'pass'}">${failed ? 'FAIL' : 'PASS'} — ${passed}/${tests.length} checks passed</h3>` +
+      tests.map(t =>
+        `<p class="${t.pass ? 'pass' : 'fail'}">${t.pass ? '✔' : '✖'} ${escapeHtml(t.name)} — ${escapeHtml(t.actual)}</p>`
+      ).join('');
+  } catch (error) {
+    summary.textContent = 'Request failed';
+    validation.innerHTML = '<p class="fail">✖ ' + escapeHtml(error.message) + '</p>';
+    result.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Send Request & Validate';
+  }
 });
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[ch]);
+}
 </script>
 </body>
 </html>
+
